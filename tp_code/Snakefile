@@ -1,0 +1,105 @@
+ANT='/usr/share/netbeans/extide/ant/bin/ant'
+
+RESULT_FILES = ['elapsedTime.csv',
+                'loadedParams.txt',
+                'mddStdDev.csv',
+                'trFitness.csv',
+                'individualSize.csv',
+                'mddAverage.csv',
+                'outputs.csv',
+                'tsFitness.csv']
+
+BEST_GD = ['airfoil-sp0.2alp5',
+           'bioavailability-sp0.4alp10',
+           'concrete-sp0.6alp10',
+           'cpu-sp0.4alp10',
+           'energyCooling-sp0.4alp10',
+           'energyHeating-sp0.2alp10',
+           'forestfires-sp0.4alp10',
+           'keijzer-5-sp0.6alp0',
+           'keijzer-6-sp0.2alp0',
+           'keijzer-7-sp0.2alp5',
+           'ppb-sp0.2alp5',
+           'towerData-sp0.2alp10',
+           'vladislavleva-1-sp0.6alp10',
+           'vladislavleva-4-sp0.2alp10',
+           'wineRed-sp0.2alp10',
+           'wineWhite-sp0.2alp10',
+           'func_a-sp0.2alp5']
+
+
+rule all:
+    input:
+        expand('run/{config}/{result_files}', config=BEST_GD, result_files=RESULT_FILES)
+
+
+# -------------------------------------- Plots
+
+rule timeseries_plot:
+    input:
+    output:
+        'paper/figures/timeseries_0.pdf',
+        'paper/figures/timeseries_1.pdf'
+    shell:
+        './code/plot_graphs.py timeseries logs --width-scale=1.0 --text-width=390 --output {output}'
+
+
+rule final_state_plot:
+    input:
+    output:
+        'paper/figures/final_state.pdf'
+    shell:
+        './code/plot_graphs.py final_state logs --width-scale=0.50 --text-width=469.75499 --output {output}'
+
+rule funca_timeserie_plot:
+    input:
+    output:
+        'paper/figures/funca_timeserie.pgf'
+    shell:
+        './code/plot_graphs.py funca_timeserie logs --width-scale=0.70 --text-width=469.75499 --output {output}'
+
+
+rule funca_confidence_width_plot:
+    input:
+    output:
+        'paper/figures/funca_confidence_width.pgf'
+    shell:
+        './code/plot_graphs.py funca_confidence_width logs --width-scale=0.50 --text-width=469.75499 --output {output}'
+
+
+rule confidence_width_plot:
+    input:
+    output:
+        'paper/figures/confidence_width.pdf'
+    shell:
+        './code/plot_graphs.py confidence_width logs --width-scale=0.50 --text-width=469.75499 --output {output}'
+
+# -------------------------------------- Program
+rule run_gsgp:
+    input:
+        'run/scripts/{config}'
+    output:
+        expand('run/{{config}}/{result_files}', result_files=RESULT_FILES)
+    shell:
+        'java -jar gsgp-gd/dist/GSGP.jar -p {input}'
+
+
+rule gsgp:
+    output:
+        'gsgp-gd/dist/GSGP.jar'
+    shell:
+        '/usr/share/netbeans/extide/ant/bin/ant -f /home/renatofg/ufmg/mestrado/disciplinas/comp_natural/tp/gsgp-gd -Dnb.internal.action.name=build jar'
+
+
+rule pandoc:
+    input:
+        rules.timeseries_plot.output,
+        rules.final_state_plot.output,
+        rules.funca_timeserie_plot.output,
+        rules.funca_confidence_width_plot.output,
+        rules.confidence_width_plot.output,
+        markdown='paper/paper.md'
+    output:
+        'paper/paper.pdf'
+    shell:
+        'pandoc -s -f markdown --filter ./paper/dot2tex-filter.py --bibliography=paper/paper.bib -t latex -o {output} {input.markdown}'
